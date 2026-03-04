@@ -1,0 +1,71 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+enum SkinType {
+  OILY
+  DRY
+  NORMAL
+  COMBINATION
+}
+
+
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  passwordHash  String   
+  image     String?
+  createdAt DateTime @default(now())
+
+  analyses  SkinAnalysis[]
+}
+
+
+
+
+model SkinAnalysis {
+  id        String   @id @default(cuid())
+  userId    String
+  imageUrl  String
+
+  skinType SkinType
+
+  oil           Int
+  acne          Int
+  blackheads    Int
+  pigmentation  Int
+  hydration     Int
+  sensitivity   Int
+
+  summary   String
+  aiRawJson Json
+
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routine Routine?
+}
+
+
+
+model Routine {
+  id         String   @id @default(cuid())
+  analysisId String   @unique
+
+  routineJson Json
+  notes       String?
+
+  createdAt DateTime @default(now())
+
+  analysis SkinAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+}

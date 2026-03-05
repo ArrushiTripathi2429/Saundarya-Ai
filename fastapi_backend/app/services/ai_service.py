@@ -7,11 +7,19 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1"
 )
 
+
+MODELS = [
+    "qwen/qwen2.5-vl-32b-instruct:free",           
+    "qwen/qwen2.5-vl-7b-instruct:free",            
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+]
+
 PROMPT = """
 You are an AI skin analysis assistant for cosmetic and informational purposes only.
 Do NOT provide medical diagnosis.
 
 Analyze the face image and return ONLY valid JSON in the format below.
+No explanation, no markdown, no extra text — just the raw JSON object.
 
 {
   "skin_type": "Oily | Dry | Normal | Combination",
@@ -42,67 +50,80 @@ def extract_json(text: str):
     return json.loads(match.group())
 
 
-async def analyze_skin_image(image_bytes: bytes) -> dict:
-    # Convert to RGB
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+def call_model(model: str, img_base64: str):
+    """Blocking call to OpenRouter — runs inside executor"""
+    return client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{img_base64}"
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": PROMPT
+                    }
+                ]
+            }
+        ]
+    )
 
-    # Convert PIL image to base64
+
+async def analyze_skin_image(image_bytes: bytes) -> dict:
+    # Convert to RGB + base64
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img_buffer = io.BytesIO()
     image.save(img_buffer, format="JPEG")
     img_base64 = base64.b64encode(img_buffer.getvalue()).decode("utf-8")
 
     loop = asyncio.get_event_loop()
+    last_error = None
 
-    try:
-        response = await asyncio.wait_for(
-            loop.run_in_executor(
-                None,
-                lambda: client.chat.completions.create(
-                    model="qwen/qwen2.5-vl-72b-instruct:free",  # free gemini model on openrouter
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{img_base64}"
-                                    }
-                                },
-                                {
-                                    "type": "text",
-                                    "text": PROMPT
-                                }
-                            ]
-                        }
-                    ]
-                )
-            ),
-            timeout=40,
-        )
-    except asyncio.TimeoutError:
-        raise ValueError("AI request timed out")
+    for model in MODELS:
+        try:
+            print(f"[AI] Trying model: {model}")
+            response = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda m=model: call_model(m, img_base64)
+                ),
+                timeout=60,  # ✅ Increased from 40s → 60s for mobile + cold starts
+            )
 
-    raw_text = (response.choices[0].message.content or "").strip()
+            raw_text = (response.choices[0].message.content or "").strip()
+            result = extract_json(raw_text)
 
-    try:
-        result = extract_json(raw_text)
-    except Exception:
-        raise ValueError("Invalid AI response format")
+            print(f"[AI] ✅ Success with model: {model}")
+            return {
+                "skin_type": result.get("skin_type", "NORMAL").upper(),
+                "oil":          clamp(result.get("oil")),
+                "acne":         clamp(result.get("acne")),
+                "blackheads":   clamp(result.get("blackheads")),
+                "pigmentation": clamp(result.get("pigmentation")),
+                "hydration":    clamp(result.get("hydration")),
+                "sensitivity":  clamp(result.get("sensitivity")),
+                "summary":      result.get("summary", "Skin analysis completed based on visible features."),
+            }
 
-    return {
-        "skin_type": result.get("skin_type", "NORMAL").upper(),
-        "oil": clamp(result.get("oil")),
-        "acne": clamp(result.get("acne")),
-        "blackheads": clamp(result.get("blackheads")),
-        "pigmentation": clamp(result.get("pigmentation")),
-        "hydration": clamp(result.get("hydration")),
-        "sensitivity": clamp(result.get("sensitivity")),
-        "summary": result.get(
-            "summary",
-            "Skin analysis completed based on visible features."
-        ),
-    }
+        except asyncio.TimeoutError:
+            print(f"[AI] ⏱ Timeout with model: {model}")
+            last_error = "Request timed out"
+            continue  # try next model
+
+        except Exception as e:
+            print(f"[AI] ❌ Error with model {model}: {e}")
+            last_error = str(e)
+            continue  # try next model
+
+    # All models failed
+    raise ValueError(f"AI analysis failed after trying all models. Last error: {last_error}")
+
+
 def generate_routine_from_analysis(analysis: dict) -> dict:
     oil         = analysis.get("oil", 0)
     acne        = analysis.get("acne", 0)
@@ -111,19 +132,19 @@ def generate_routine_from_analysis(analysis: dict) -> dict:
     summary     = analysis.get("summary", "")
 
     morning = [
-        {"step": 1, "productType": "Cleanser",     "instructions": "Oil-control cleanser" if oil > 50 else "Gentle hydrating cleanser"},
-        {"step": 2, "productType": "Toner",        "instructions": "Niacinamide toner" if oil > 50 else "Hydrating toner"},
-        {"step": 3, "productType": "Serum",        "instructions": "Vitamin C serum for brightening"},
-        {"step": 4, "productType": "Moisturiser",  "instructions": "Oil-free gel moisturiser" if oil > 50 else "Rich hydrating moisturiser"},
-        {"step": 5, "productType": "Sunscreen",    "instructions": "SPF 50 broad spectrum (non-negotiable!)"},
+        {"step": 1, "productType": "Cleanser",    "instructions": "Oil-control cleanser" if oil > 50 else "Gentle hydrating cleanser"},
+        {"step": 2, "productType": "Toner",       "instructions": "Niacinamide toner" if oil > 50 else "Hydrating toner"},
+        {"step": 3, "productType": "Serum",       "instructions": "Vitamin C serum for brightening"},
+        {"step": 4, "productType": "Moisturiser", "instructions": "Oil-free gel moisturiser" if oil > 50 else "Rich hydrating moisturiser"},
+        {"step": 5, "productType": "Sunscreen",   "instructions": "SPF 50 broad spectrum (non-negotiable!)"},
     ]
 
     evening = [
-        {"step": 1, "productType": "Oil Cleanser",  "instructions": "Double cleanse to remove sunscreen & makeup"},
-        {"step": 2, "productType": "Face Wash",     "instructions": "Salicylic acid (2%) cleanser" if acne > 30 else "Gentle foam cleanser"},
-        {"step": 3, "productType": "Serum",         "instructions": "Retinol serum (start 2x/week)" if acne > 30 else "Hyaluronic acid serum"},
-        {"step": 4, "productType": "Moisturiser",   "instructions": "Lightweight gel" if oil > 50 else "Ceramide night cream"},
-        {"step": 5, "productType": "Eye Cream",     "instructions": "Hydrating eye cream" if hydration < 50 else "Caffeine eye cream"},
+        {"step": 1, "productType": "Oil Cleanser", "instructions": "Double cleanse to remove sunscreen & makeup"},
+        {"step": 2, "productType": "Face Wash",    "instructions": "Salicylic acid (2%) cleanser" if acne > 30 else "Gentle foam cleanser"},
+        {"step": 3, "productType": "Serum",        "instructions": "Retinol serum (start 2x/week)" if acne > 30 else "Hyaluronic acid serum"},
+        {"step": 4, "productType": "Moisturiser",  "instructions": "Lightweight gel" if oil > 50 else "Ceramide night cream"},
+        {"step": 5, "productType": "Eye Cream",    "instructions": "Hydrating eye cream" if hydration < 50 else "Caffeine eye cream"},
     ]
 
     weekly = [

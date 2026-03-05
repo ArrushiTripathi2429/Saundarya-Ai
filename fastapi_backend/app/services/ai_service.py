@@ -58,7 +58,7 @@ async def analyze_skin_image(image_bytes: bytes) -> dict:
             loop.run_in_executor(
                 None,
                 lambda: client.chat.completions.create(
-                    model="openrouter/auto",  # free gemini model on openrouter
+                    model="qwen/qwen2.5-vl-72b-instruct:free",  # free gemini model on openrouter
                     messages=[
                         {
                             "role": "user",

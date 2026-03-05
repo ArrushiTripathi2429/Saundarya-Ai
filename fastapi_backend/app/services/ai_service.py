@@ -9,10 +9,10 @@ client = OpenAI(
 
 
 MODELS = [
-    "qwen/qwen3-vl-30b-a3b-thinking:free",  
-    "google/gemma-3-27b-it:free",             
-    "mistralai/mistral-small-3.1-24b-instruct:free",
-    "openrouter/free",                         
+   "google/gemma-3-27b-it:free",                    
+    "moonshotai/kimi-vl-a3b-thinking:free",          
+    "mistralai/mistral-small-3.1-24b-instruct:free", 
+    "openrouter/free",                        
 ]
 
 

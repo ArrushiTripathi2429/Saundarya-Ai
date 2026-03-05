@@ -58,7 +58,7 @@ export function LiveScanning() {
 
         // 5. Call the exact same API route
         const res = await fetch(
-          "http://localhost:8000/api/analysis/upload-and-analyze",
+           `${process.env.NEXT_PUBLIC_API_URL}/api/analysis/upload-and-analyze`,
           {
             method: "POST",
             headers: { "x-user-id": session.user.id },

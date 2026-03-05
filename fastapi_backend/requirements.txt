@@ -13,3 +13,4 @@ python-dotenv==1.0.0
 numpy==1.26.4
 opencv-python-headless==4.9.0.80
 pillow==11.0.0
+mediapipe==0.10.9

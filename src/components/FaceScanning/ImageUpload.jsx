@@ -8,33 +8,32 @@ import { FileUpload } from "@/components/ui/file-upload";
 export function ImageUpload() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); // ✅ error state
   const router = useRouter();
   const { data: session } = useSession();
 
   const handleFileUpload = (files) => {
     setFiles(files);
+    setError(null); // clear error on new upload
   };
 
   const handleAnalyze = async () => {
-    console.log(" handleAnalyze triggered");
-    console.log("Files:", files);
-    console.log("Session:", session);
-
     if (!files.length) return;
 
     if (!session?.user?.id) {
-      alert("Please login first");
+      setError("Please login first.");
       return;
     }
 
     try {
       setLoading(true);
+      setError(null); // clear previous error
 
       const formData = new FormData();
       formData.append("file", files[0].file ?? files[0]);
 
       const res = await fetch(
-         `${process.env.NEXT_PUBLIC_API_URL}/api/analysis/upload-and-analyze`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/analysis/upload-and-analyze`,
         {
           method: "POST",
           headers: {
@@ -45,21 +44,18 @@ export function ImageUpload() {
       );
 
       const data = await res.json();
-      console.log("Full API response:", JSON.stringify(data));
 
       if (!res.ok) {
-        console.error("Analysis failed:", data);
-        alert("Analysis failed");
+        setError("AI services are temporarily unavailable. Please try again.");
         return;
       }
 
-      
       localStorage.setItem("skinAnalysis", JSON.stringify(data.analysis));
-
       router.push("/result");
+
     } catch (err) {
       console.error("Analyze error:", err);
-      alert("Something went wrong");
+      setError("Something went wrong. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -70,6 +66,23 @@ export function ImageUpload() {
       <div className="min-h-96 border border-dashed rounded-lg">
         <FileUpload onChange={handleFileUpload} />
       </div>
+
+      
+      {error && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+          <span className="text-lg">😔</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-400">AI Services temporarily busy, Please try again later.</p>
+            <p className="text-xs text-red-400/70 mt-0.5">{error}</p>
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-400/50 hover:text-red-400 text-lg leading-none"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <button
         type="button"

@@ -9,10 +9,12 @@ client = OpenAI(
 
 
 MODELS = [
-    "qwen/qwen2.5-vl-32b-instruct:free",           
-    "qwen/qwen2.5-vl-7b-instruct:free",            
-    "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "qwen/qwen3-vl-30b-a3b-thinking:free",  
+    "google/gemma-3-27b-it:free",             
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "openrouter/free",                         
 ]
+
 
 PROMPT = """
 You are an AI skin analysis assistant for cosmetic and informational purposes only.

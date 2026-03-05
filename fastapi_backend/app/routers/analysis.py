@@ -77,14 +77,12 @@ async def upload_and_analyze(
                 detail="Missing user id",
             )
 
-        
         process_result = await image_processor.process_upload(
             file=file,
             require_face=False,
             enhance=enhance,
         )
 
-        
         face_detected = process_result["face_detection"]["detected"]
 
         if require_face and not face_detected:
@@ -93,10 +91,8 @@ async def upload_and_analyze(
                 detail="No face detected. Please upload a clear selfie.",
             )
 
-    
         cropped_numpy = process_result["numpy_image"]
 
-        
         success, buffer = cv2.imencode(".jpg", cropped_numpy)
         if not success:
             raise HTTPException(
@@ -105,30 +101,27 @@ async def upload_and_analyze(
             )
         cropped_bytes = buffer.tobytes()
 
-        
         analysis = Analysis(
             id=str(uuid.uuid4()),
             user_id=user_id,
             image_url=process_result["processed"]["base64"],
             status=AnalysisStatus.RUNNING,
         )
-        print("About to insert - oil value:", analysis.oil)
-        print("DB URL:", db.bind.url)
         db.add(analysis)
         db.commit()
         db.refresh(analysis)
 
         try:
-        
             ai_results = await analyze_skin_image(cropped_bytes)
 
+            # ✅ Fixed: using "or 0" to safely handle None/invalid values
             analysis.skin_type    = ai_results.get("skin_type", "NORMAL")
-            analysis.oil          = int(ai_results.get("oil", 0))
-            analysis.acne         = int(ai_results.get("acne", 0))
-            analysis.blackheads   = int(ai_results.get("blackheads", 0))
-            analysis.pigmentation = int(ai_results.get("pigmentation", 0))
-            analysis.hydration    = int(ai_results.get("hydration", 0))
-            analysis.sensitivity  = int(ai_results.get("sensitivity", 0))
+            analysis.oil          = int(ai_results.get("oil") or 0)
+            analysis.acne         = int(ai_results.get("acne") or 0)
+            analysis.blackheads   = int(ai_results.get("blackheads") or 0)
+            analysis.pigmentation = int(ai_results.get("pigmentation") or 0)
+            analysis.hydration    = int(ai_results.get("hydration") or 0)
+            analysis.sensitivity  = int(ai_results.get("sensitivity") or 0)
             analysis.summary      = ai_results.get("summary", "Analysis completed.")
             analysis.ai_raw_json  = ai_results
             analysis.status       = AnalysisStatus.COMPLETED
@@ -145,6 +138,7 @@ async def upload_and_analyze(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"AI analysis failed: {str(ai_error)}",
             )
+
         return {
             "success": True,
             "analysis": {

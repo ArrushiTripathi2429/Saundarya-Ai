@@ -26,7 +26,7 @@ async def send_routine(
     user_id: str = Header(..., alias="x-user-id"),
     db: Session = Depends(get_db)
 ):
-    # 1️⃣ Fetch analysis from DB
+    
     analysis = db.query(Analysis).filter(
         Analysis.id == req.analysis_id,
         Analysis.user_id == user_id
@@ -44,7 +44,7 @@ async def send_routine(
             detail="Analysis not completed yet"
         )
 
-    # 2️⃣ Generate routine JSON from analysis
+    
     routine_json = generate_routine_from_analysis({
         "skinType":     analysis.skin_type,
         "oil":          analysis.oil,
@@ -56,7 +56,7 @@ async def send_routine(
         "summary":      analysis.summary,
     })
 
-    # 3️⃣ Send email
+
     success = send_routine_email(
         to_email=req.email,
         user_name=req.user_name,

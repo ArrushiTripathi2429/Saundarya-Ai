@@ -10,9 +10,9 @@ from app.database import Base
 import enum
 
 
-# ================================
+
 # Enums
-# ================================
+
 
 class SkinType(str, enum.Enum):
     OILY = "OILY"
@@ -28,9 +28,11 @@ class AnalysisStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
-# ================================
+
 # User Model
-# ================================
+
+
+
 
 class User(Base):
     __tablename__ = "users"
@@ -39,18 +41,14 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=True)
     image = Column(String, nullable=True)
-    password_hash = Column(String, nullable=False)
+    passwordHash = Column(String, nullable=True)  # match Prisma column name
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    createdAt = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationship with Analysis
     analyses = relationship("Analysis", back_populates="user")
 
-
-# ================================
 # Analysis Model
-# ================================
+
 
 class Analysis(Base):
     __tablename__ = "analyses"
@@ -58,13 +56,13 @@ class Analysis(Base):
     id = Column(String, primary_key=True, index=True)
 
     # Proper FK relationship
-    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    user_id = Column(String, nullable=True)  # no FK constraint
 
     image_url = Column(String, nullable=False)
 
     status = Column(Enum(AnalysisStatus), default=AnalysisStatus.PENDING)
 
-    # ✅ FINAL FIX — default value added
+    
     skin_type = Column(
         Enum(SkinType),
         nullable=False,

@@ -77,14 +77,14 @@ async def upload_and_analyze(
                 detail="Missing user id",
             )
 
-        # 1️⃣ Process image — decodes, detects face, crops, returns numpy + base64
+        
         process_result = await image_processor.process_upload(
             file=file,
             require_face=False,
             enhance=enhance,
         )
 
-        # 2️⃣ Check if a face was actually detected
+        
         face_detected = process_result["face_detection"]["detected"]
 
         if require_face and not face_detected:
@@ -93,10 +93,10 @@ async def upload_and_analyze(
                 detail="No face detected. Please upload a clear selfie.",
             )
 
-        # 3️⃣ Get the cropped face as numpy array directly
+    
         cropped_numpy = process_result["numpy_image"]
 
-        # 4️⃣ Encode numpy → JPEG bytes for the AI service
+        
         success, buffer = cv2.imencode(".jpg", cropped_numpy)
         if not success:
             raise HTTPException(
@@ -105,7 +105,7 @@ async def upload_and_analyze(
             )
         cropped_bytes = buffer.tobytes()
 
-        # 5️⃣ Create DB record with RUNNING status before calling AI
+        
         analysis = Analysis(
             id=str(uuid.uuid4()),
             user_id=user_id,
@@ -119,7 +119,7 @@ async def upload_and_analyze(
         db.refresh(analysis)
 
         try:
-            # 6️⃣ Call AI service on cropped face bytes
+        
             ai_results = await analyze_skin_image(cropped_bytes)
 
             analysis.skin_type    = ai_results.get("skin_type", "NORMAL")
@@ -145,8 +145,6 @@ async def upload_and_analyze(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"AI analysis failed: {str(ai_error)}",
             )
-
-        # 7️⃣ Return result
         return {
             "success": True,
             "analysis": {

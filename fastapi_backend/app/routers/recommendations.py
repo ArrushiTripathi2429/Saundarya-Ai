@@ -12,9 +12,7 @@ from app.schemas import RecommendationRequest, RecommendationResponse
 router = APIRouter()
 
 
-# =========================================
-# Create Recommendation (Auth Removed)
-# =========================================
+
 @router.post("", response_model=RecommendationResponse, status_code=status.HTTP_201_CREATED)
 async def create_recommendations(
     request: RecommendationRequest,
@@ -56,9 +54,7 @@ async def create_recommendations(
     )
 
 
-# =========================================
-# Get Recommendation (Auth Removed)
-# =========================================
+
 @router.get("", response_model=dict)
 async def get_recommendations(
     analysisId: str = Query(..., description="Analysis ID"),

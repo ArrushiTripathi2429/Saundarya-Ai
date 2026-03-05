@@ -9,6 +9,8 @@ client = OpenAI(
 
 
 MODELS = [
+      "qwen/qwen2.5-vl-32b-instruct:free",   # 🥇 Your original fav - correct ID
+       "qwen/qwen-2.5-vl-7b-instruct:free" , 
    "google/gemma-3-27b-it:free",                    
     "moonshotai/kimi-vl-a3b-thinking:free",          
     "mistralai/mistral-small-3.1-24b-instruct:free", 

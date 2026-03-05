@@ -45,7 +45,7 @@ class User(Base):
 
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
 
-    analyses = relationship("Analysis", back_populates="user")
+
 
 # Analysis Model
 
@@ -83,5 +83,4 @@ class Analysis(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationship back to User
-    user = relationship("User", back_populates="analyses")
+

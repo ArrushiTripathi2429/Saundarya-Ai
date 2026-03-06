@@ -8,7 +8,8 @@ export function LiveScanning() {
   const videoRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [captured, setCaptured] = useState(false); // shows preview flash
+  const [captured, setCaptured] = useState(false);
+  const [aiError, setAiError] = useState(false);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -18,6 +19,7 @@ export function LiveScanning() {
       videoRef.current.srcObject = stream;
       videoRef.current.play();
       setIsScanning(true);
+      setAiError(false);
     } catch (err) {
       console.error("Camera access denied", err);
       alert("Please allow camera access");
@@ -29,34 +31,31 @@ export function LiveScanning() {
     if (stream) stream.getTracks().forEach((t) => t.stop());
     setIsScanning(false);
     setCaptured(false);
+    setAiError(false);
   };
 
-  
   const handleCapture = async () => {
     if (!session?.user?.id) {
       alert("Please login first");
       return;
     }
 
-    
     const canvas = document.createElement("canvas");
     canvas.width  = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     canvas.getContext("2d").drawImage(videoRef.current, 0, 0);
 
     setCaptured(true);
+    setAiError(false);
     setTimeout(() => setCaptured(false), 300);
 
-  
     canvas.toBlob(async (blob) => {
       try {
         setLoading(true);
 
-        
         const formData = new FormData();
         formData.append("file", blob, "live-scan.jpg");
 
-        // 5. Call the exact same API route
         const res = await fetch(
            `${process.env.NEXT_PUBLIC_API_URL}/api/analysis/upload-and-analyze`,
           {
@@ -71,18 +70,17 @@ export function LiveScanning() {
 
         if (!res.ok) {
           console.error("Analysis failed:", data);
-          alert("Analysis failed");
+          setAiError(true);
           return;
         }
 
-        
         localStorage.setItem("skinAnalysis", JSON.stringify(data.analysis));
         stopCamera();
         router.push("/result");
 
       } catch (err) {
         console.error("Live scan error:", err);
-        alert("Something went wrong");
+        setAiError(true);
       } finally {
         setLoading(false);
       }
@@ -112,10 +110,55 @@ export function LiveScanning() {
         }}>Scanning</span>
       </h2>
 
+      {/* AI Error Banner */}
+      {aiError && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            marginBottom: "16px",
+            padding: "12px 20px",
+            borderRadius: "12px",
+            border: "1px solid rgba(224,92,92,0.3)",
+            background: "rgba(224,92,92,0.08)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <span style={{ fontSize: "16px" }}>⚠️</span>
+          <div>
+            <p style={{
+              fontFamily: "var(--font-dm-sans), sans-serif",
+              color: "rgba(224,150,150,0.95)",
+              fontSize: "13px",
+              fontWeight: 500,
+              margin: 0,
+            }}>AI services down temporarily</p>
+            <p style={{
+              fontFamily: "var(--font-dm-sans), sans-serif",
+              color: "rgba(255,255,255,0.4)",
+              fontSize: "12px",
+              margin: "2px 0 0 0",
+            }}>Please try capturing again in a moment</p>
+          </div>
+          <button
+            onClick={() => setAiError(false)}
+            style={{
+              marginLeft: "auto",
+              background: "none",
+              border: "none",
+              color: "rgba(255,255,255,0.3)",
+              cursor: "pointer",
+              fontSize: "16px",
+              lineHeight: 1,
+            }}
+          >×</button>
+        </motion.div>
+      )}
       
       <div className="relative w-full aspect-video rounded-2xl border border-white/10 bg-black overflow-hidden">
 
-      
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -123,15 +166,12 @@ export function LiveScanning() {
           muted
         />
 
-        
         <div className="absolute inset-0 bg-gradient-to-br from-black via-neutral-900 to-black opacity-50" />
 
-      
         {captured && (
           <div className="absolute inset-0 bg-white/30 z-20 pointer-events-none" />
         )}
 
-        
         {isScanning && !loading && (
           <motion.div
             className="absolute left-0 right-0 h-[2px] z-10"
@@ -144,7 +184,6 @@ export function LiveScanning() {
           />
         )}
 
-    
         {loading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3"
             style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}>
@@ -168,7 +207,6 @@ export function LiveScanning() {
           </div>
         )}
 
-        
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <div style={{
             width: "176px", height: "240px",
@@ -178,7 +216,6 @@ export function LiveScanning() {
           }} />
         </div>
 
-      
         {["top-left", "top-right", "bottom-left", "bottom-right"].map((pos) => {
           const [v, h] = pos.split("-");
           return (
@@ -242,7 +279,7 @@ export function LiveScanning() {
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "linear-gradient(135deg, rgba(201,169,110,0.3), rgba(240,192,64,0.18))"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(201,169,110,0.2), rgba(240,192,64,0.1))"; }}
             >
-              {loading ? "Analysing…" : "📸 &nbsp;Capture & Analyse"}
+              {loading ? "Analysing…" : "📸 \u00a0Capture & Analyse"}
             </button>
 
             <button

@@ -8,7 +8,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 export function ImageUpload() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); // ✅ error state
+  const [error, setError] = useState(null); 
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -27,7 +27,7 @@ export function ImageUpload() {
 
     try {
       setLoading(true);
-      setError(null); // clear previous error
+      setError(null); 
 
       const formData = new FormData();
       formData.append("file", files[0].file ?? files[0]);
